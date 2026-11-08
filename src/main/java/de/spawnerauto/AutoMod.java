@@ -168,6 +168,16 @@ public class AutoMod implements ClientModInitializer {
         return m;
     }
 
+    private int countFullStacks(Item it) {
+        int maxC = new ItemStack(it).getMaxCount();
+        int n = 0;
+        for (int i = 9; i <= 44; i++) {
+            ItemStack s = mc.player.playerScreenHandler.getSlot(i).getStack();
+            if (s.isOf(it) && s.getCount() >= maxC) n++;
+        }
+        return n;
+    }
+
     /** Sucht nur VOLLE Stacks (Anzahl == Maximalgröße). */
     private int findInvSlot(Item it) {
         int maxC = new ItemStack(it).getMaxCount();
@@ -322,23 +332,23 @@ public class AutoMod implements ClientModInitializer {
             }
             case WAIT_PICKUP -> {
                 if (tick < wait) return;
-                Map<Item, Integer> now = countInv();
-                gained.clear();
                 queue.clear();
-                for (Map.Entry<Item, Integer> e : now.entrySet()) {
-                    int diff = e.getValue() - before.getOrDefault(e.getKey(), 0);
-                    int maxC = new ItemStack(e.getKey()).getMaxCount();
-                    if (maxC > 1 && diff >= maxC) { gained.put(e.getKey(), diff); queue.add(e.getKey()); }
+                Item sellItem = cfg.spawnerType == 0 ? Items.BONE : Items.GUNPOWDER;
+                if (countFullStacks(sellItem) <= 0) {
+                    msg("Keine vollen Stacks von " + new ItemStack(sellItem).getName().getString() + " im Inventar.");
+                    finishCycle();
+                    return;
                 }
-                if (queue.isEmpty()) { msg("Keine neuen vollen Stacks aufgenommen."); finishCycle(); return; }
+                queue.add(sellItem);
                 set(Phase.NEXT_ITEM, 0, 200);
             }
             case NEXT_ITEM -> {
                 if (queue.isEmpty()) { finishCycle(); return; }
                 cur = queue.poll();
-                int maxC = new ItemStack(cur).getMaxCount();
-                stacksToSell = gained.getOrDefault(cur, 0) / maxC; // nur volle Stacks
-                String name = new ItemStack(cur).getName().getString();
+                stacksToSell = countFullStacks(cur); // ALLE vollen Stacks dieses Spawner-Items
+                String name = (cfg.searchTerm == null || cfg.searchTerm.isBlank())
+                    ? new ItemStack(cur).getName().getString()
+                    : cfg.searchTerm.trim();
                 status = "Suche im AH: " + name;
                 mc.getNetworkHandler().sendChatCommand("ah " + name);
                 sortClicks = 0; pages = 0; lastSig = ""; scanMax = -1; scanMin = -1;
@@ -383,6 +393,8 @@ public class AutoMod implements ClientModInitializer {
                     if (s.isEmpty() || !s.isOf(cur)) continue;
                     double price = listingPrice(s);
                     if (price <= 0) continue;
+                    double perStack = price / s.getCount() * s.getMaxCount();
+                    if (perStack < cfg.priceMin || perStack > cfg.priceMax) continue; // außerhalb Min/Max ignorieren
                     double per = price / s.getCount();
                     sig.append(price).append('|');
                     if (scanMax < 0 || per > scanMax) scanMax = per;
@@ -408,7 +420,7 @@ public class AutoMod implements ClientModInitializer {
                 }
                 mc.player.closeHandledScreen();
                 perItem = cfg.priceMode == 1 ? scanMin : scanMax;
-                if (perItem <= 0) { skipItem("kein Preis im AH gefunden"); return; }
+                if (perItem <= 0) { skipItem("kein passender Preis im AH (zwischen Min- und Max-Preis)"); return; }
                 status = "Preis/Item: " + (long) perItem;
                 holdDone = false; confirmTried = false;
                 set(Phase.SELL, 10, 200);
@@ -427,7 +439,8 @@ public class AutoMod implements ClientModInitializer {
                 }
                 ItemStack held = mc.player.getMainHandStack();
                 if (!held.isOf(cur) || held.getCount() < held.getMaxCount()) { holdDone = false; set(Phase.SELL, 5, 200); return; }
-                long price = Math.max(1, (long) Math.floor(perItem * held.getCount() * (100 - cfg.undercutPct) / 100.0));
+                long price = (long) Math.floor(perItem * held.getCount() * (100 - cfg.undercutPct) / 100.0);
+                price = Math.max(Math.max(1, cfg.priceMin), Math.min(cfg.priceMax, price));
                 mc.getNetworkHandler().sendChatCommand("ah sell " + price);
                 status = "Verkaufe " + held.getName().getString() + " für " + price;
                 stacksToSell--;

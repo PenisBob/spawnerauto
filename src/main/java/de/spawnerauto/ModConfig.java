@@ -19,6 +19,10 @@ public class ModConfig {
     public int undercutPct = 0;     // Abzug vom ermittelten Preis in %
     public int priceMode = 0;       // 0 = teuerster Preis (alle Seiten), 1 = günstigster Preis (erste Seite)
     public int maxPages = 25;       // max. Seiten beim Durchblättern
+    public int spawnerType = 0;     // 0 = Skeleton (Knochen), 1 = Creeper (Schwarzpulver)
+    public long priceMin = 1000;    // Mindestpreis pro Stack
+    public long priceMax = 10_000_000; // Höchstpreis pro Stack
+    public String searchTerm = "";  // Suchbegriff fürs AH (leer = Itemname des Clients)
 
     public boolean payEnabled = false;
     public String payTarget = "XhiroTTV";
@@ -34,6 +38,10 @@ public class ModConfig {
         try { return Integer.parseInt(p.getProperty(k, String.valueOf(d))); } catch (NumberFormatException e) { return d; }
     }
 
+    private static long l(Properties p, String k, long d) {
+        try { return Long.parseLong(p.getProperty(k, String.valueOf(d))); } catch (NumberFormatException e) { return d; }
+    }
+
     public void load() {
         if (!Files.exists(path())) return;
         try (Reader r = Files.newBufferedReader(path())) {
@@ -47,6 +55,10 @@ public class ModConfig {
             undercutPct = i(p, "undercutPct", 0);
             priceMode = i(p, "priceMode", 0);
             maxPages = i(p, "maxPages", 25);
+            spawnerType = i(p, "spawnerType", 0);
+            priceMin = l(p, "priceMin", 1000);
+            priceMax = l(p, "priceMax", 10_000_000);
+            searchTerm = p.getProperty("searchTerm", "");
             payEnabled = Boolean.parseBoolean(p.getProperty("payEnabled", "false"));
             payTarget = p.getProperty("payTarget", "XhiroTTV");
             payPercent = i(p, "payPercent", 50);
@@ -68,6 +80,10 @@ public class ModConfig {
         p.setProperty("undercutPct", String.valueOf(undercutPct));
         p.setProperty("priceMode", String.valueOf(priceMode));
         p.setProperty("maxPages", String.valueOf(maxPages));
+        p.setProperty("spawnerType", String.valueOf(spawnerType));
+        p.setProperty("priceMin", String.valueOf(priceMin));
+        p.setProperty("priceMax", String.valueOf(priceMax));
+        p.setProperty("searchTerm", searchTerm);
         p.setProperty("payEnabled", String.valueOf(payEnabled));
         p.setProperty("payTarget", payTarget);
         p.setProperty("payPercent", String.valueOf(payPercent));
