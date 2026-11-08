@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "spawnerauto",
+  "version": "${version}",
+  "name": "Spawner Auto",
+  "description": "Spawner droppen, Auktionshaus-Preis pruefen, verkaufen und AFKPay (clientseitig).",
+  "authors": ["you"],
+  "environment": "client",
+  "entrypoints": {
+    "client": ["de.spawnerauto.AutoMod"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
