@@ -1,1 +1,40 @@
-
+name: Build SpawnerAuto
+ 
+on:
+  push:
+  workflow_dispatch:
+ 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+ 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+ 
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 9.2.0
+ 
+      - name: Neueste passende Fabric-Versionen ermitteln
+        run: |
+          MC=1.21.11
+          YARN=$(curl -s https://meta.fabricmc.net/v2/versions/yarn/$MC | jq -r '.[0].version')
+          LOADER=$(curl -s https://meta.fabricmc.net/v2/versions/loader | jq -r '[.[] | select(.stable)][0].version')
+          FAPI=$(curl -s https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml | grep -o "<version>[^<]*+$MC</version>" | sed 's/<[^>]*>//g' | tail -1)
+          echo "yarn=$YARN loader=$LOADER fabric-api=$FAPI"
+          echo "GRADLE_ARGS=-Pyarn_mappings=$YARN -Ploader_version=$LOADER -Pfabric_version=$FAPI" >> $GITHUB_ENV
+ 
+      - name: Build
+        run: gradle build $GRADLE_ARGS
+ 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spawnerauto-jar
+          path: |
+            build/libs/spawnerauto-*.jar
+            !build/libs/*-sources.jar
+ 
